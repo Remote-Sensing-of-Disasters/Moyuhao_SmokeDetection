@@ -224,7 +224,7 @@ def test_samples(net_file, net_para, test_samples_files, result_pth, name, bands
             pred = torch.softmax(pred,1)
             pred.detach()
             prediction = torch.max(pred, 1)[1]
-            #prediction = torch.where(pred[:,1]>0.65,1,0)#阈值在这调整
+            #prediction = torch.where(pred[:,1]>0.70,1,0)#阈值在这调整
             Prediction[I:I + step]=prediction.cpu().detach().numpy()
             tp, tn, fp, fn = cal_cfm(prediction.cpu(), label.cpu())
             TP+=tp
@@ -235,7 +235,7 @@ def test_samples(net_file, net_para, test_samples_files, result_pth, name, bands
         if 1:  # 成图代码
             img=Prediction.reshape([ary.shape[1], ary.shape[2]])*255
             mk_pred_pic(img, file,
-                        'self-training_test{}_{}'.format(smp_pth.split('\\')[-2],smp_pth.split('\\')[-1]))  # 成图代码
+                        r'{}'.format(smp_pth.split('\\')[-1]))  # 成图代码
             print(TP, TN, FP, FN)
         return TP, TN, FP, FN
 
@@ -274,21 +274,21 @@ def test_samples(net_file, net_para, test_samples_files, result_pth, name, bands
         print('成功输出评价参数结果')
 
 
-EveryPicName = '0830_EveryMorningPicture'#'fourdaysNoTrain_EveryPicture' #'0830NoTrain_EveryPicture'
-AllTestName = '0830'#'fourdays'#'0830'
+EveryPicName = '0817_EveryMorningPicture'#'fourdaysNoTrain_EveryPicture' #'0830NoTrain_EveryPicture'
+AllTestName = '0817'#'fourdays'#'0830'
 #net_files = glob.glob(r'E:\SmokeDetection\source\MLP_90_exp\4000_smoke\1\*f1.pth')
-net_files = glob.glob(r'E:\SmokeDetection\source\semi-supervised learning\result\test 0830 2hours with time semi065 small\*89.pth') #结果存储
+net_files = glob.glob(r'E:\SmokeDetection\source\semi-supervised learning\result\test 0817 4hours small2\*loss.pth') #结果存储
 for net_file in net_files:
     #filePath = r'E:\SmokeDetection\source\MLP_Results\256_3_nowind_200smoke1800nosmoke'
     #net_file = filePath + r'\fcn_interval_199.pth'
-    filePath = net_file.split('\\f')[:-1][0]
+    filePath = net_file.split('\\f')[:-1][0] #r'F:\results\Noon256batchsize3e4lrBN050Dropout' #文件存放路径net_file.split('\\f')[:-1][0]
     name = net_file.split('\\')[-2]+net_file.split('\\')[-1][:-4]
-    bands =[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]#[1,2,3,7,11,13,14,15,16]
+    bands =[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]#[1,2,3,7,11,13,14,15,16]
     #net_para =(input_vertex, output_vertex, hidden_vertex, num_layer, BN, Drop)
-    net_para = (len(bands), 2, 17, 1,True,0) #超参数定义！！！！！！！！！！！！！！!!!!!!!!!!!!!!!!!!!!!!!!!!!!！！！！！！
-    test_samples_files = glob.glob(r'E:\SmokeDetection\source\semi-supervised learning\cliped_new_new_data\0830\0*0.tif')[:6]
+    net_para = (len(bands), 2, 20, 2,True,0) #超参数定义！！！！！！！！！！！！！！!!!!!!!!!!!!!!!!!!!!!!!!!!!!！！！！！！
+    #test_samples_files = glob.glob(r'F:\new_new_data\*\0*0.tif')
     #test_samples_files = glob.glob(r'E:\SmokeDetection\source\hist_data\*\*.tif')
-    #test_samples_files = glob.glob(r'E:\SmokeDetection\source\test_data\*\*.tif')[6:]
+    test_samples_files = glob.glob(r'E:\SmokeDetection\source\semi-supervised learning\cliped_new_new_data\0817\*.tif')[:]
     result_pth = filePath
     string3 = '正在运行模型{}'.format(net_file.split('source')[-1])
     with open(result_pth + os.sep + 'Evaluation report_{}_{}.txt'.format(EveryPicName,name), 'w') as f:

@@ -14,10 +14,41 @@ def Normalization(a):
     for i in range(ary.shape[0]-1):
         ary[i,:,:] = (ary[i,:,:]-ary[i,:,:].mean())/ary[i,:,:].std()
     return ary
+def create_by_random_noise(file, td_pth, vd_pth, idx_pth, file_nexttime, alpha): #,label
+    # 20211217 15:55 使用随机采样的方式加入噪声，采样的规则是：对最靠近待预测的时段的样本的每个像元的每个波段的值进行一个定向的噪声。
+    # V1'=V1+α(V2-V1)
+    # file_nexttime是待预测的图像
+    # alpha就是公式里的α
+    ary = gdal.Open(file).ReadAsArray()
+    ary_temp =gdal.Open(file).ReadAsArray()
+    # ary = Normalization(ary)
+    #l = gdal.Open(label).ReadAsArray() / 255.0
+    # l[:250,:] = l[:250,:] *0.0
+    #ary[:-1, :, :] = l
+    random.shuffle(idx)
+    td = []
+    vd = []
+    td_idx = []
+    vd_idx =[]
+    count = 0 #计数君
+
+    while len(td)<ary.shape[1]*ary.shape[2]*0.7: # 每幅图35420个像元用作训练，占一幅图的70%，总数50600 20210913
+        td.append(ary[:,idx[count][0],idx[count][1]]+alpha*(ary_temp[:,idx[count][0],idx[count][1]]-ary[:,idx[count][0],idx[count][1]])) #读入数据
+        td_idx.append(idx[count])
+        count+=1
+
+    while len(vd)<ary.shape[1]*ary.shape[2]*0.3: # 每幅图15180个像元用作验证，占一幅图的30% 一幅图shape=(19, 230, 220) 20210913
+        vd.append(ary[:,idx[count][0],idx[count][1]]+alpha*(ary_temp[:,idx[count][0],idx[count][1]]-ary[:,idx[count][0],idx[count][1]]))
+        vd_idx.append(idx[count])
+        count+=1
+
+    np.save(td_pth, td)
+    np.save(vd_pth, vd)
+    np.savez(idx_pth, td_idx=td_idx, vd_idx=vd_idx)
 
 def create_by_random(file, td_pth, vd_pth, idx_pth): #,label
     ary = gdal.Open(file).ReadAsArray()
-    ary = Normalization(ary)
+    # ary = Normalization(ary)
     #l = gdal.Open(label).ReadAsArray() / 255.0
     # l[:250,:] = l[:250,:] *0.0
     #ary[:-1, :, :] = l
@@ -201,13 +232,13 @@ create_by_random(pic, fn+r'\{}_td.npy'.format(utc),
 
 '''
 
-fns = glob.glob(r'E:\SmokeDetection\source\semi-supervised learning\cliped_new_new_data\*\*.tif')
+fns = glob.glob(r'E:\SmokeDetection\source\semi-supervised learning\cliped_new_new_data\*\0100.tif')
 for f in fns:
     date = f.split('\\')[-2]
-    fn = r'E:\SmokeDetection\source\semi-supervised learning\manual_samples_Nor\{}'.format(date)#数据存放点!!!!记住了，一定要把上个时刻的数据丢到这个文件夹里
+    fn = r'E:\SmokeDetection\source\semi-supervised learning\manual_samples\{}'.format(date)#数据存放点!!!!记住了，一定要把上个时刻的数据丢到这个文件夹里
     utc = f[-8:-4]#数据的时间   记得确认数据哦
     pic = f
-    create_by_random(pic, fn+r'\{}_td.npy'.format(utc),
-                    fn+r'\{}_vd.npy'.format(utc),
-                     fn+r'\{}_idx.npz'.format(utc))
+    create_by_random_noise(pic, fn+r'\{}_01_td.npy'.format(utc),
+                    fn+r'\{}_01_vd.npy'.format(utc),
+                     fn+r'\{}_01_idx.npz'.format(utc),r'E:\SmokeDetection\source\semi-supervised learning\cliped_new_new_data\{}\0050.tif'.format(date),0.1)
     print('搞定一张图,date={},utc={}'.format(date,utc))

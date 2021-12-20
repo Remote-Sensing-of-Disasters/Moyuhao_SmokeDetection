@@ -192,13 +192,23 @@ def train(td_path, vd_path, result_path, bands, output_vertex, hidden_vertex, nu
             # ---------- TODO ----------
             # Filter the data and construct a new dataset.
             info0, info1 = torch.max(probs, dim=1)[0], torch.max(probs, dim=1)[1]
+            smoke_num, nosmoke_num = 0,0 # 这是初始的有烟像元限定数和无烟限定数
             for j, (prob, label) in enumerate(zip(info0, info1)):
                 if prob >= threshold:
-                    argsmp.append(img[j])
-                    pseudo_label.append(label.long())  #
+                    if label==1:
+                        argsmp.append(img[j])
+                        pseudo_label.append(label.long())
+                        smoke_num += 1 # 当为烟像元的时候，就把smoke_num + 1
+                        nosmoke_num += 49 # 暂时限定无烟的数量最多是有烟的49倍,根据0100的有烟占比0.017搞出来的
+                    if label==0 and nosmoke_num>0 :
+                        argsmp.append(img[j])
+                        pseudo_label.append(label.long())
+                        nosmoke_num -= 1
         argsmp = torch.stack(argsmp).cuda()
         pseudo_label = torch.stack(pseudo_label).cuda()  # 图片太多Concat的时候会溢出
-        print('有{}个半监督样本，其中有烟的有{}个'.format(pseudo_label.size()[0],pseudo_label.sum()))
+        with open('pseudo_samples.txt', 'a') as f:
+            print('有{}个半监督样本，其中有烟的有{}个\n'.format(pseudo_label.size()[0],pseudo_label.sum()))
+            f.write('有{}个半监督样本，其中有烟的有{}个\n'.format(pseudo_label.size()[0],pseudo_label.sum()))
         dataset = Data.TensorDataset(argsmp, pseudo_label)
         if len(argsmp) == 0:
             return 0
@@ -218,7 +228,7 @@ def train(td_path, vd_path, result_path, bands, output_vertex, hidden_vertex, nu
     temp2=0
     #加载网络和优化器
     net = FCN(input_vertex, output_vertex, hidden_vertex, num_layer, BN, Drop).cuda()
-    #net = load_network()
+    if net_file: net = load_network() #微调代码
     opt = torch.optim.Adam(params=net.parameters(),lr=lr) #BatchSize=2000+
     #opt = torch.optim.SGD(params=net.parameters(),momentum=0.9,lr=lr)#weight_decay=L2正则
     #加载训练数据
@@ -287,8 +297,8 @@ def train(td_path, vd_path, result_path, bands, output_vertex, hidden_vertex, nu
     for e in range(echo):
         trainingDataset = Data.TensorDataset(trainingDataTorch.float(), trainingTargetTorch.long())
         validationDataset = Data.TensorDataset(validationDataTorch.float(), validationTargetTorch.long())
-        if semi and e>=79: #20211109
-            semiDataset = get_pseudo_labels(pseudoDataset, net, 0.65)
+        if semi and e>=0: #20211109 ##################################semi 半监督#############################
+            semiDataset = get_pseudo_labels(pseudoDataset, net, 0.6)
             if semiDataset: #20211109
                 trainingDataset = Data.ConcatDataset([trainingDataset, semiDataset])
                 validationDataset = Data.ConcatDataset([validationDataset, semiDataset])
@@ -424,7 +434,7 @@ def train(td_path, vd_path, result_path, bands, output_vertex, hidden_vertex, nu
             temp = loss_vd
         print(time.asctime())
         del loss_vd,validationLoss,validationPrediction
-        if e % 10 == 9:
+        if e % 20 == 19:
             saveInterval = 'fcn_interval_{}.pth'.format(e)
             torch.save(net.state_dict(), saveInterval)
 '''  for count,file in enumerate(fns[file_num:file_num+filesize]):
